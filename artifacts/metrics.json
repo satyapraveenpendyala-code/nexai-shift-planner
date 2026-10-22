@@ -1,0 +1,29 @@
+{
+  "test_rows": 2000,
+  "test_failures": 68,
+  "pr_auc": 0.8803,
+  "roc_auc": 0.9771,
+  "baseline_logreg_pr_auc": 0.4477,
+  "threshold": 0.13,
+  "cost_ratio_missed_to_false_alarm": 20.0,
+  "precision_at_threshold": 0.5351,
+  "recall_at_threshold": 0.8971,
+  "f1_at_threshold": 0.6703,
+  "confusion": {
+    "tp": 61,
+    "fp": 53,
+    "fn": 7,
+    "tn": 1879
+  },
+  "test_cost_model": 193.0,
+  "test_cost_default_0.5": 270.0,
+  "test_cost_no_model": 1360.0,
+  "mode_pr_auc": {
+    "twf": 0.036,
+    "hdf": 0.9873,
+    "pwf": 0.95,
+    "osf": 0.9963
+  },
+  "mode_accuracy_on_true_failures": 0.9697,
+  "notes": "AI4I 2020 is synthetic. RNF excluded (random failures). Threshold tuned on validation, metrics on test."
+}
