@@ -236,10 +236,16 @@ else:
                 "torque": c[1].number_input("Torque (Nm)", 3.0, 80.0, 40.0),
                 "tool_wear": c[2].number_input("Tool wear (min)", 0, 260, 50),
             }])
-            _, p1, m1, _ = predict(b, row)
+            X1, p1, m1, contrib1 = predict(b, row)
             st.metric("Failure risk", f"{p1[0]:.1%}")
             st.write(f"Likely failure: **{MODE_NAME[m1[0]]}** · "
                      f"{'needs a technician' if p1[0] >= thr else 'no action needed'} (threshold {thr:.2f})")
+            top1 = np.argsort(-np.abs(contrib1[0]))[:5]
+            st.markdown("**Why this risk (SHAP)**")
+            st.bar_chart(pd.Series(contrib1[0][top1], index=[NICE[FEATURES[j]] for j in top1]),
+                         horizontal=True, height=220)
+            st.caption("Bars to the right push failure risk up; to the left push it down. "
+                       + ", ".join(f"{NICE[FEATURES[j]]} = {X1.iloc[0, j]:.1f}" for j in top1))
 
     # ---------------- TECHNICIAN ----------------
     else:
