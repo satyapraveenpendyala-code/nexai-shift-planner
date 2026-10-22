@@ -14,6 +14,7 @@ import streamlit as st
 import xgboost as xgb
 
 import db
+import rag
 from train_model import FEATURES, MODES, add_features
 
 ART = Path("artifacts")
@@ -50,6 +51,12 @@ def predict(b, df):
     mp = np.column_stack([b["mode_models"][m].predict_proba(X)[:, 1] for m in MODES])
     contrib = b["model"].get_booster().predict(xgb.DMatrix(X), pred_contribs=True)[:, :-1]  # TreeSHAP
     return X, p, np.array(MODES)[mp.argmax(1)], contrib
+
+
+@st.cache_data(show_spinner="Retrieving SOPs and writing work order...")
+def sop_work_order(machine_id, tech, mode, p, causes):
+    """RAG copilot: retrieve SOP sections and write a cited work order (cached per machine)."""
+    return rag.work_order({"machine_id": machine_id, "tech": tech, "mode": mode, "p": p, "causes": causes})
 
 
 def threshold_for(curve, ratio):
@@ -256,4 +263,20 @@ else:
                 c2.markdown("**Why it was flagged (SHAP)**")
                 c2.bar_chart(pd.Series(contrib[i][top], index=[NICE[FEATURES[j]] for j in top]),
                              horizontal=True, height=160)
-                c2.caption(", ".join(f"{NICE[FEATURES[j]]} = {X.iloc[i, j]:.1f}" for j in top))
+                causes = ", ".join(f"{NICE[FEATURES[j]]} = {X.iloc[i, j]:.1f}" for j in top)
+                c2.caption(causes)
+
+                if st.button("Show SOP steps", key=f"rag_{r.machine_id}"):
+                    ss.setdefault("sop_open", set()).add(r.machine_id)  # keep it open across reruns
+                if r.machine_id in ss.get("sop_open", set()):
+                    wo = sop_work_order(r.machine_id, me, r["mode"], float(r.p), causes)
+                    (st.warning if wo["status"] == "escalate" else st.markdown)(wo["text"])
+                    st.caption({"llm": "Source: LLM from retrieved SOPs",
+                                "template": "Template from retrieved SOPs (no LLM key)"
+                                if wo.get("reason") == "no key" else "Template from retrieved SOPs (LLM unavailable)",
+                                "none": "No matching SOP"}[wo["source"]])
+                    if wo["hits"]:
+                        ids = [h["id"] for h in wo["hits"]]
+                        cited = [x for x in ids if x in wo["text"]] or ids
+                        st.caption("Cited: " + ", ".join(cited))
+                    st.caption("Illustrative team-written SOPs, not approved maintenance procedures.")
